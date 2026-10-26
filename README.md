@@ -103,6 +103,85 @@ python scripts/run_experiment.py --redo 17 --note "notifikasi sistem muncul"   #
 
 Sesi gagal dicatat di `results/session_log.md` dan dicoba ulang otomatis, maksimal 3 percobaan. Suhu baterai sebelum dan sesudah sesi disimpan di `schedule.csv`.
 
+### 5a. Pengambilan data manual per konfigurasi (PowerShell)
+
+Alternatif dari `run_experiment.py` memakai fungsi di `scripts/bench_tools.ps1`. Kondisi HP tiap sesi dicatat ke `results/session_log.csv`.
+
+`MODE` dan `HZ` ditanam ke APK saat build, jadi APK **wajib diganti setiap pindah konfigurasi**, tetapi tidak perlu diganti di antara sesi 1–10 dalam konfigurasi yang sama. Cukup install APK dari `builds/`; `flutter build` hanya perlu bila kode berubah.
+
+**Setiap membuka terminal baru**
+
+```powershell
+cd C:\Users\Andreas\project\crm-state-benchmark
+adb devices                      # HP harus berstatus "device"
+. .\scripts\bench_tools.ps1      # memuat fungsi dan $PKG_A / $PKG_B
+Kondisi-HP                       # level baterai, suhu, usb, thermal, RAM tersedia
+$suhuAwal = Cek-Suhu             # patokan suhu hari ini
+```
+
+**Urutan per konfigurasi** (contoh A-N-10; ganti sesuai tabel di bawah)
+
+1. Install APK: `adb install -r builds\A-N-10.apk`
+2. Kosongkan hasil lama di HP: `Bersihkan-HP $PKG_A`
+3. Sesi uji coba (opsional): `Jalankan-Sesi $PKG_A "A-N-10"` lalu `Ambil-Hasil $PKG_A "A-N-10" "demo"`
+4. Sesi resmi 1: `Jalankan-Sesi $PKG_A "A-N-10" "resmi"`
+5. Sesi resmi 2–10:
+   ```powershell
+   $kode = "A-N-10"; $pkg = $PKG_A; $jenis = "resmi"
+   for ($i = 2; $i -le 10; $i++) {
+     Start-Sleep -Seconds 10
+     if (-not (Tunggu-Dingin $suhuAwal)) { break }   # berhenti bila $suhuAwal belum diisi
+     Write-Host "=== $kode sesi $i | suhu $(Cek-Suhu) °C ===" -ForegroundColor Cyan
+     Jalankan-Sesi $pkg $kode $jenis
+   }
+   ```
+6. Salin hasil ke laptop: `Ambil-Hasil $PKG_A "A-N-10"` (harus tertulis 10 file di `results\raw\A-N-10`)
+7. Isi sheet *Log Resmi* (nama file JSON + status), lalu `Bersihkan-HP $PKG_A`
+
+**Daftar 16 konfigurasi**
+
+| Kode | Library | `MODE` | `HZ` | Install APK | Paket | Jalankan sesi resmi | Ambil hasil |
+|---|---|---|---|---|---|---|---|
+| A-N-10 | Provider | naive | 10 | `adb install -r builds\A-N-10.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-N-10" "resmi"` | `Ambil-Hasil $PKG_A "A-N-10"` |
+| A-N-20 | Provider | naive | 20 | `adb install -r builds\A-N-20.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-N-20" "resmi"` | `Ambil-Hasil $PKG_A "A-N-20"` |
+| A-N-50 | Provider | naive | 50 | `adb install -r builds\A-N-50.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-N-50" "resmi"` | `Ambil-Hasil $PKG_A "A-N-50"` |
+| A-N-90 | Provider | naive | 90 | `adb install -r builds\A-N-90.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-N-90" "resmi"` | `Ambil-Hasil $PKG_A "A-N-90"` |
+| A-S-10 | Provider | selective | 10 | `adb install -r builds\A-S-10.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-S-10" "resmi"` | `Ambil-Hasil $PKG_A "A-S-10"` |
+| A-S-20 | Provider | selective | 20 | `adb install -r builds\A-S-20.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-S-20" "resmi"` | `Ambil-Hasil $PKG_A "A-S-20"` |
+| A-S-50 | Provider | selective | 50 | `adb install -r builds\A-S-50.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-S-50" "resmi"` | `Ambil-Hasil $PKG_A "A-S-50"` |
+| A-S-90 | Provider | selective | 90 | `adb install -r builds\A-S-90.apk` | `$PKG_A` | `Jalankan-Sesi $PKG_A "A-S-90" "resmi"` | `Ambil-Hasil $PKG_A "A-S-90"` |
+| B-N-10 | Riverpod | naive | 10 | `adb install -r builds\B-N-10.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-N-10" "resmi"` | `Ambil-Hasil $PKG_B "B-N-10"` |
+| B-N-20 | Riverpod | naive | 20 | `adb install -r builds\B-N-20.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-N-20" "resmi"` | `Ambil-Hasil $PKG_B "B-N-20"` |
+| B-N-50 | Riverpod | naive | 50 | `adb install -r builds\B-N-50.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-N-50" "resmi"` | `Ambil-Hasil $PKG_B "B-N-50"` |
+| B-N-90 | Riverpod | naive | 90 | `adb install -r builds\B-N-90.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-N-90" "resmi"` | `Ambil-Hasil $PKG_B "B-N-90"` |
+| B-S-10 | Riverpod | selective | 10 | `adb install -r builds\B-S-10.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-S-10" "resmi"` | `Ambil-Hasil $PKG_B "B-S-10"` |
+| B-S-20 | Riverpod | selective | 20 | `adb install -r builds\B-S-20.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-S-20" "resmi"` | `Ambil-Hasil $PKG_B "B-S-20"` |
+| B-S-50 | Riverpod | selective | 50 | `adb install -r builds\B-S-50.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-S-50" "resmi"` | `Ambil-Hasil $PKG_B "B-S-50"` |
+| B-S-90 | Riverpod | selective | 90 | `adb install -r builds\B-S-90.apk` | `$PKG_B` | `Jalankan-Sesi $PKG_B "B-S-90" "resmi"` | `Ambil-Hasil $PKG_B "B-S-90"` |
+
+Untuk sesi uji coba, hilangkan `"resmi"` pada `Jalankan-Sesi` dan tambahkan `"demo"` pada `Ambil-Hasil`. Pada loop sesi 2–10, ganti `$kode` dan `$pkg` sesuai baris tabel.
+
+**Build ulang APK** (hanya bila kode di `apps/` atau `packages/` berubah); contoh B-S-90:
+
+```powershell
+cd apps\crm_benchmark_riverpod          # crm_benchmark_provider untuk kode A-*
+flutter build apk --release --dart-define=MODE=selective --dart-define=HZ=90
+adb install -r build\app\outputs\flutter-apk\app-release.apk
+cd ..\..
+```
+
+**Perintah lain**
+
+| Keperluan | Perintah |
+|---|---|
+| Cek suhu baterai saja | `Cek-Suhu` |
+| Hentikan sesi yang sedang berjalan | `adb shell am force-stop $PKG_A` |
+| Lihat file JSON di HP | `adb shell ls /sdcard/Android/data/$PKG_A/files/` |
+| Cek isi JSON terakhir | `Get-Content (Get-ChildItem results\raw\A-N-10\*.json \| Select-Object -Last 1).FullName` |
+| Ulangi konfigurasi dari sesi 1 (uji coba) | `Bersihkan-HP $PKG_A; Remove-Item results\demo\A-N-10 -Recurse -Force -ErrorAction SilentlyContinue` |
+| Gabungkan dan periksa 160 JSON | `python scripts\gabung_data.py` |
+| Analisis statistik Subbab 3.8 | `python scripts\analisis_data.py` |
+
 ### 6. Analisis (Fase 13)
 
 ```bash
